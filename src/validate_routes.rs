@@ -1,7 +1,10 @@
 use crate::{
     builder_traits::builder::BuildRoute,
-    route_builder::{HttpResponse, Routes},
+    route_builder::Routes,
+    http_response::HttpResponse
 };
+
+
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
@@ -39,4 +42,3 @@ where
 {
 }
 
-impl Validate<Routes<String>> for Routes<String> {}

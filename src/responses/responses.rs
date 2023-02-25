@@ -1,12 +1,15 @@
+#[derive(Clone, Debug)]
 pub enum ResponseStatus {
     OK,
     INTERNALSERVERERROR,
 }
 
+#[derive(Clone, Debug)]
 pub enum ResponseTypes {
     Html,
 }
 
+#[derive(Clone, Debug)]
 pub struct Response {
     pub status: ResponseStatus,
     pub respone_string: String,
@@ -40,6 +43,10 @@ impl Response {
     pub fn response_type(&mut self, response_type: ResponseTypes) -> &mut Self {
         self.response_type = response_type;
         self
+    }
+
+    pub fn finish(&mut self) -> Self {
+        self.clone()
     }
 
     pub fn build(&mut self) -> String {
