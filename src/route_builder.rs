@@ -5,31 +5,8 @@ use std::{
 };
 
 use crate::builder_traits::builder::BuildRoute;
+use crate::http_response::HttpResponse;
 use crate::responses::responses::{Response, ResponseStatus, ResponseTypes};
-
-pub trait HttpResponse {
-    fn response(
-        status: ResponseStatus,
-        response_type: ResponseTypes,
-        response_string: String,
-    ) -> String;
-}
-
-impl HttpResponse for String {
-    fn response(
-        status: ResponseStatus,
-        response_type: ResponseTypes,
-        response_string: String,
-    ) -> String {
-        let build_response = Response::new()
-            .response_type(response_type)
-            .status(status)
-            .response(response_string)
-            .build();
-
-        build_response
-    }
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Route<T>
@@ -38,6 +15,7 @@ where
 {
     pub path: &'static str,
     pub response: fn() -> T,
+    pub request_type: &'static str,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -66,10 +44,16 @@ where
         Self::default()
     }
 
-    fn add_route(&mut self, route_path: &'static str, resp: fn() -> T) -> &mut Self {
+    fn add_route(
+        &mut self,
+        route_path: &'static str,
+        resp: fn() -> T,
+        request_type: &'static str,
+    ) -> &mut Self {
         self.routes.push(Route {
             path: route_path,
             response: resp,
+            request_type,
         });
         return self;
     }
@@ -105,38 +89,34 @@ where
 
 impl<T> Routes<T>
 where
-    T: HttpResponse + Debug + Clone + ToString,
+    T: HttpResponse + Debug + Clone,
 {
     pub fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let listener = TcpListener::bind("127.0.0.1:8000");
 
         for stream in listener?.incoming() {
             let mut stream = stream?;
-            let path = stream.headers()[0].clone();
+            let path = stream.headers().get(0).clone().expect("nope").clone();
             let response = self.get_route(path.clone().split(" ").into_iter().nth(1).unwrap());
 
             match response {
-                Some(value) => {
+                Some(value)
+                    if value.request_type.to_lowercase()
+                        == path.clone().split(" ").nth(0).unwrap().to_lowercase() =>
+                {
                     let value_function = value.response;
-                    let response = String::response(
-                        ResponseStatus::OK,
-                        ResponseTypes::Html,
-                        value_function().to_string(),
-                    );
+                    let response = value_function().response();
 
-                    stream
-                        .write(response.as_bytes())
-                        .expect("Couldn't write to stream.");
+                    stream.write(response.as_bytes())?;
+                    stream.flush()?;
                 }
-                None => {
-                    let not_found = String::response(
+                _ => {
+                    let not_found = Response::build_response(
+                        "route not found".to_string(),
                         ResponseStatus::INTERNALSERVERERROR,
                         ResponseTypes::Html,
-                        "404 route doesn't exist".to_string(),
                     );
-                    stream
-                        .write(not_found.as_bytes())
-                        .expect("Couldn't write 404 - Stream");
+                    stream.write(not_found.as_bytes())?;
                 }
             }
         }
