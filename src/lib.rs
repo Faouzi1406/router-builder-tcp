@@ -1,7 +1,7 @@
-mod builder_traits;
-mod route_builder;
-mod validate_routes;
-mod responses;
+pub mod builder_traits;
+pub mod route_builder;
+pub mod validate_routes;
+pub mod responses;
 
 #[cfg(test)]
 mod tests {
