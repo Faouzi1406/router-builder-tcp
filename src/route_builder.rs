@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::{
     io::{prelude::*, BufReader},
@@ -6,6 +7,7 @@ use std::{
 
 use crate::builder_traits::builder::BuildRoute;
 use crate::http_response::HttpResponse;
+use crate::match_route::{self, match_path};
 use crate::responses::responses::{Response, ResponseStatus, ResponseTypes};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -14,8 +16,9 @@ where
     T: HttpResponse,
 {
     pub path: &'static str,
-    pub response: fn() -> T,
+    pub response: fn(Option<HashMap<String, String>>) -> T,
     pub request_type: &'static str,
+    pub request_params: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -47,13 +50,14 @@ where
     fn add_route(
         &mut self,
         route_path: &'static str,
-        resp: fn() -> T,
+        resp: fn(Option<HashMap<String, String>>) -> T,
         request_type: &'static str,
     ) -> &mut Self {
         self.routes.push(Route {
             path: route_path,
             response: resp,
             request_type,
+            request_params: None,
         });
         return self;
     }
@@ -97,16 +101,25 @@ where
         for stream in listener?.incoming() {
             let mut stream = stream?;
             let path = stream.headers().get(0).clone().expect("nope").clone();
-            let response = self.get_route(path.clone().split(" ").into_iter().nth(1).unwrap());
+            let match_route = match_path::RouteParams::new(
+                path.clone().split(" ").nth(1).unwrap().to_string(),
+                self,
+            )
+            .match_route();
+            let match_params_route = match_route.clone();
 
-            match response {
-                Some(value)
-                    if value.request_type.to_lowercase()
-                        == path.clone().split(" ").nth(0).unwrap().to_lowercase() =>
-                {
-                    let value_function = value.response;
-                    let response = value_function().response();
+            match match_params_route {
+                Some(value) => {
+                    let value_function = value.clone().response;
+                    let params = match match_route.clone() {
+                        Some(_) => match value.clone().request_params {
+                            Some(value_params) => Some(value_params),
+                            None => None,
+                        },
+                        None => None,
+                    };
 
+                    let response = value_function(params).response();
                     stream.write(response.as_bytes())?;
                     stream.flush()?;
                 }

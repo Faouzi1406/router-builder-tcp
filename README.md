@@ -1,6 +1,5 @@
 # Rewriting a old implementation  of a router:
 
-
 Am rewriting a old implementation of a router that I had written for the [TCP](https://nl.wikipedia.org/wiki/Transmission_Control_Protocol)  protocol. 
 
 ## Why 

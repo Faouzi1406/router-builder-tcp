@@ -1,16 +1,20 @@
 pub mod builder_traits;
 pub mod http_response;
+pub mod match_route;
 pub mod responses;
 pub mod route_builder;
 pub mod validate_routes;
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use crate::builder_traits::builder::BuildRoute;
     use crate::responses::responses::Response;
     use crate::route_builder::Routes;
 
-    pub fn man() -> Response {
+    pub fn man(some_value: Option<HashMap<String, String>>) -> Response {
+        println!("{some_value:?}");
         Response::new()
             .response_type(crate::responses::responses::ResponseTypes::Html)
             .status(crate::responses::responses::ResponseStatus::OK)
@@ -51,8 +55,8 @@ mod tests {
     #[test]
     fn router() {
         Routes::new()
-            .add_route("/hello", man, "get")
-            .add_route("/goodbye", man, "post")
-            .run().expect("Something went wrong?");
+            .add_route("/goodbye", man, "get")
+            .add_route("/goodbye/:hello", man, "get")
+            .run();
     }
 }
