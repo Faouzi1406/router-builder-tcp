@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, format};
 use std::{
     io::{prelude::*, BufReader},
     net::{TcpListener, TcpStream},
@@ -95,8 +95,9 @@ impl<T> Routes<T>
 where
     T: HttpResponse + Debug + Clone,
 {
-    pub fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let listener = TcpListener::bind("127.0.0.1:8000");
+    pub fn run(&mut self, server:(&'static str, i32)) -> Result<(), Box<dyn std::error::Error>> {
+        let bind = format!("{}:{}", server.0, server.1);
+        let listener = TcpListener::bind(bind);
 
         for stream in listener?.incoming() {
             let mut stream = stream?;

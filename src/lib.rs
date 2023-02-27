@@ -57,6 +57,6 @@ mod tests {
         Routes::new()
             .add_route("/:crazy", man, "get")
             .add_route("/goodbye/:crazy", man, "get")
-            .run();
+            .run(("127.0.0.1", 8080));
     }
 }
