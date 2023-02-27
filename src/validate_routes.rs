@@ -1,10 +1,6 @@
 use crate::{
-    builder_traits::builder::BuildRoute,
-    route_builder::Routes,
-    http_response::HttpResponse
+    builder_traits::builder::BuildRoute, http_response::HttpResponse, route_builder::Routes,
 };
-
-
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
@@ -41,4 +37,3 @@ where
     T: BuildRoute<T> + Clone + Default + PartialEq + std::fmt::Debug,
 {
 }
-
