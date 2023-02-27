@@ -55,8 +55,8 @@ mod tests {
     #[test]
     fn router() {
         Routes::new()
-            .add_route("/goodbye", man, "get")
-            .add_route("/goodbye/:hello", man, "get")
+            .add_route("/:crazy", man, "get")
+            .add_route("/goodbye/:crazy", man, "get")
             .run();
     }
 }

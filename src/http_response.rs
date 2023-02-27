@@ -22,3 +22,19 @@ impl HttpResponse for Response {
         self.build()
     }
 }
+
+impl HttpResponse for &'static mut Response {
+    fn response(&mut self) -> String {
+        self.build()
+    }
+}
+
+impl HttpResponse for String {
+    fn response(&mut self) -> String {
+        Response::new()
+            .status(ResponseStatus::OK)
+            .response_type(ResponseTypes::Html)
+            .response(self.to_string())
+            .build()
+    }
+}
