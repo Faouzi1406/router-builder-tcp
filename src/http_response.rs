@@ -23,6 +23,7 @@ impl HttpResponse for Response {
     }
 }
 
+
 impl HttpResponse for &'static mut Response {
     fn response(&mut self) -> String {
         self.build()
@@ -38,3 +39,4 @@ impl HttpResponse for String {
             .build()
     }
 }
+
