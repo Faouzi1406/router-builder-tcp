@@ -36,17 +36,14 @@ where
         }
     }
 
-    fn validate(&self, url: Vec<String>) -> bool {
-        if self.url_split.len() != url.len() {
-            return false;
-        };
-
-        for (i, value) in url.iter().enumerate() {
+    fn validate(path: Vec<String>, url: Vec<String>) -> bool {
+        for (i, value) in path.iter().enumerate() {
             if value.contains(":") {
                 continue;
             }
-            if *value != self.url_split[i] {
-                return false;
+
+            if *value != url[i] {
+                return false
             }
         }
 
@@ -89,7 +86,7 @@ where
                     return Some(route);
                 }
 
-                if self.validate(url.clone()) {
+                if url.len() == self.url_split.len() {
                     let param = self.match_params(url);
                     let route: Route<R> = Route {
                         request_params: Some(param),

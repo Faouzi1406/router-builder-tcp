@@ -1,14 +1,7 @@
 use std::collections::HashMap;
-use std::fmt::{Debug, format};
-use std::{
-    io::{prelude::*, BufReader},
-    net::{TcpListener, TcpStream},
-};
-
+use std::fmt::Debug;
 use crate::builder_traits::builder::BuildRoute;
 use crate::http_response::HttpResponse;
-use crate::match_route::{self, match_path};
-use crate::responses::responses::{Response, ResponseStatus, ResponseTypes};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Route<T>
@@ -26,7 +19,7 @@ pub struct Routes<R>
 where
     R: HttpResponse,
 {
-    pub routes: Vec<Route<R>>,
+    pub routes: HashMap<String, Vec<Route<R>>>,
 }
 
 impl<T> Default for Routes<T>
@@ -34,7 +27,9 @@ where
     T: HttpResponse,
 {
     fn default() -> Self {
-        Self { routes: Vec::new() }
+        Self {
+            routes: HashMap::new(),
+        }
     }
 }
 
@@ -53,103 +48,28 @@ where
         resp: fn(Option<HashMap<String, String>>) -> T,
         request_type: &'static str,
     ) -> &mut Self {
-        self.routes.push(Route {
+        let parent = route_path
+            .clone()
+            .split("/")
+            .skip(1)
+            .nth(0)
+            .expect("Didn't find a / are you sure you started every route with a /");
+
+        let value = self.routes.get_mut(parent);
+        let route = Route {
             path: route_path,
             response: resp,
             request_type,
             request_params: None,
-        });
+        };
+        if value.is_some() {
+            let unwrap_value = value.unwrap();
+            unwrap_value.push(route);
+        } else {
+            let mut vec = Vec::new();
+            vec.push(route);
+            self.routes.insert(parent.to_string(), vec);
+        };
         return self;
-    }
-
-    fn build_string(&mut self) -> String {
-        self.routes.clone().iter().map(|x| x.path).collect()
-    }
-}
-
-trait FindRoute<T>
-where
-    T: HttpResponse + Debug + Clone,
-{
-    fn get_route<S>(&self, route: S) -> Option<Route<T>>
-    where
-        S: ToString + Clone;
-}
-
-impl<T> FindRoute<T> for Routes<T>
-where
-    T: HttpResponse + Debug + Clone,
-{
-    fn get_route<S>(&self, route: S) -> Option<Route<T>>
-    where
-        S: ToString + Clone,
-    {
-        match self.routes.iter().find(|x| x.path == route.to_string()) {
-            Some(value) => Some(value.clone()),
-            None => None,
-        }
-    }
-}
-
-impl<T> Routes<T>
-where
-    T: HttpResponse + Debug + Clone,
-{
-    pub fn run(&mut self, server:(&'static str, i32)) -> Result<(), Box<dyn std::error::Error>> {
-        let bind = format!("{}:{}", server.0, server.1);
-        let listener = TcpListener::bind(bind);
-
-        for stream in listener?.incoming() {
-            let mut stream = stream?;
-            let path = stream.headers().get(0).clone().expect("nope").clone();
-            let match_route = match_path::RouteParams::new(
-                path.clone().split(" ").nth(1).unwrap().to_string(),
-                self,
-            )
-            .match_route();
-            let match_params_route = match_route.clone();
-
-            match match_params_route {
-                Some(value) => {
-                    let value_function = value.clone().response;
-                    let params = match match_route.clone() {
-                        Some(_) => match value.clone().request_params {
-                            Some(value_params) => Some(value_params),
-                            None => None,
-                        },
-                        None => None,
-                    };
-
-                    let response = value_function(params).response();
-                    stream.write(response.as_bytes())?;
-                    stream.flush()?;
-                }
-                _ => {
-                    let not_found = Response::build_response(
-                        "route not found".to_string(),
-                        ResponseStatus::INTERNALSERVERERROR,
-                        ResponseTypes::Html,
-                    );
-                    stream.write(not_found.as_bytes())?;
-                }
-            }
-        }
-
-        Ok(())
-    }
-}
-
-trait Tcp {
-    fn headers(&mut self) -> Vec<String>;
-}
-
-impl Tcp for TcpStream {
-    fn headers(&mut self) -> Vec<String> {
-        let buf_reader = BufReader::new(self);
-        buf_reader
-            .lines()
-            .map(|result| result.unwrap())
-            .take_while(|line| !line.is_empty())
-            .collect()
     }
 }
