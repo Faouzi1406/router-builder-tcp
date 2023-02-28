@@ -3,18 +3,17 @@ use std::collections::HashMap;
 use builder::{builder_traits::builder::BuildRoute, route_builder::Routes};
 
 fn respone(params: Option<HashMap<String, String>>) -> String {
-    println!("{params:#?}");
     "wow".to_string()
 }
 
 fn wow(params: Option<HashMap<String, String>>) -> String {
-    println!("{params:#?}");
     "loooool".to_string()
 }
 
 #[tokio::main]
 async fn main() {
     Routes::new()
+        .add_route("/", respone, "get")
         .add_route("/home", respone, "get")
         .add_route("/welcome/:id", respone, "get")
         .add_route("/this/:id", wow, "get")
