@@ -63,6 +63,7 @@ where
                         ResponseTypes::Html,
                     );
                     stream.try_write(not_found.as_bytes())?;
+                    stream.flush().await.expect("Couldn't flush stream");
                 }
             }
         }
