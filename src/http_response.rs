@@ -40,3 +40,12 @@ impl HttpResponse for String {
     }
 }
 
+impl HttpResponse for &'static str {
+    fn response(&mut self) -> String {
+        Response::new()
+            .status(ResponseStatus::OK)
+            .response_type(ResponseTypes::Html)
+            .response(self.to_string())
+            .build()
+    }
+}

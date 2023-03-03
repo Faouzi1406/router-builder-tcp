@@ -1,4 +1,4 @@
-use std::{path::Path, fs::File, io::Read};
+use std::{fs::File, io::Read, path::Path};
 
 #[derive(Clone, Debug)]
 pub enum ResponseStatus {
@@ -45,6 +45,33 @@ impl Response {
 
     pub fn response_type(&mut self, response_type: ResponseTypes) -> &mut Self {
         self.response_type = response_type;
+        self
+    }
+
+    #[cfg(serde)]
+    pub fn json<T>(&mut self, file_name: T) -> &mut Self
+    where
+        T: AsRef<Path>,
+    {
+        let open_file = File::open(file_name);
+
+        match open_file {
+            Ok(mut file) => {
+                let read_file = file.read_to_string(&mut self.respone_string);
+                match read_file {
+                    Ok(_) => (),
+                    Err(_) => self.respone_string = "couldn't read file".to_string(),
+                }
+                ()
+            }
+            Err(_) => {
+                self.response("File doesn't exist".to_string());
+                ()
+            }
+        };
+
+        self.response_type = ResponseTypes::File;
+
         self
     }
 
