@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::{fs::File, io::Read, path::Path};
 
 #[derive(Clone, Debug)]
@@ -10,6 +11,7 @@ pub enum ResponseStatus {
 pub enum ResponseTypes {
     Html,
     File,
+    Json
 }
 
 #[derive(Clone, Debug)]
@@ -49,29 +51,15 @@ impl Response {
     }
 
     #[cfg(feature="serde")]
-    pub fn json<T>(&mut self, json: T) -> &mut Self
+    pub fn json<'a, T>(&mut self, json: T) -> &mut Self
     where
-        T: serde::de,
+        T: serde::Deserialize<'a> +  serde::Serialize
     {
-        let open_file = File::open(file_name);
-
-        match open_file {
-            Ok(mut file) => {
-                let read_file = file.read_to_string(&mut self.respone_string);
-                match read_file {
-                    Ok(_) => (),
-                    Err(_) => self.respone_string = "couldn't read file".to_string(),
-                }
-                ()
-            }
-            Err(_) => {
-                self.response("File doesn't exist".to_string());
-                ()
-            }
+        self.respone_string = match serde_json::to_string(&json){
+            Ok(value) => value,
+            Err(_) => "not valid json".to_owned()
         };
-
-        self.response_type = ResponseTypes::File;
-
+        self.response_type = ResponseTypes::Json;
         self
     }
 
@@ -114,11 +102,12 @@ impl Response {
         let response_type = match self.response_type {
             ResponseTypes::Html => "Content-Type: text/html;",
             ResponseTypes::File => "Content-Type: text/plain;",
+            ResponseTypes::Json =>  "Content-Type: application/json;"
         };
 
         let response_content = self.respone_string.clone();
         let response_length = response_content.len();
 
-        format!("HTTP/1.1 {status}\r\n{response_type} Content-Length: {response_length};\r\n\r\n{response_content}")
+        format!("HTTP/1.1 {status}\r\n{response_type}\r\nContent-Length: {response_length};\r\n\r\n{response_content}")
     }
 }
