@@ -48,10 +48,10 @@ impl Response {
         self
     }
 
-    #[cfg(serde)]
-    pub fn json<T>(&mut self, file_name: T) -> &mut Self
+    #[cfg(feature="serde")]
+    pub fn json<T>(&mut self, json: T) -> &mut Self
     where
-        T: AsRef<Path>,
+        T: serde::de,
     {
         let open_file = File::open(file_name);
 
