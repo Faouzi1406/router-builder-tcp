@@ -50,7 +50,10 @@ where
                     };
 
                     let response = value_function(params).response();
-                    stream.writable().await.expect("socket was never made readable!");
+                    stream
+                        .writable()
+                        .await
+                        .expect("socket was never made readable!");
                     stream
                         .try_write(response.as_bytes())
                         .expect("Couldn't write to stream");

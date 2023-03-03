@@ -1,3 +1,5 @@
+use std::{path::Path, fs::File, io::Read};
+
 #[derive(Clone, Debug)]
 pub enum ResponseStatus {
     OK,
@@ -7,6 +9,7 @@ pub enum ResponseStatus {
 #[derive(Clone, Debug)]
 pub enum ResponseTypes {
     Html,
+    File,
 }
 
 #[derive(Clone, Debug)]
@@ -45,6 +48,32 @@ impl Response {
         self
     }
 
+    pub fn file<T>(&mut self, file_name: T) -> &mut Self
+    where
+        T: AsRef<Path>,
+    {
+        let open_file = File::open(file_name);
+
+        match open_file {
+            Ok(mut file) => {
+                let read_file = file.read_to_string(&mut self.respone_string);
+                match read_file {
+                    Ok(_) => (),
+                    Err(_) => self.respone_string = "couldn't read file".to_string(),
+                }
+                ()
+            }
+            Err(_) => {
+                self.response("File doesn't exist".to_string());
+                ()
+            }
+        };
+
+        self.response_type = ResponseTypes::File;
+
+        self
+    }
+
     pub fn finish(&mut self) -> Self {
         self.clone()
     }
@@ -57,6 +86,7 @@ impl Response {
 
         let response_type = match self.response_type {
             ResponseTypes::Html => "Content-Type: text/html;",
+            ResponseTypes::File => "Content-Type: text/plain;",
         };
 
         let response_content = self.respone_string.clone();
