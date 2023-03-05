@@ -3,6 +3,7 @@ use crate::match_route::match_path;
 use crate::responses::responses::Response;
 use crate::route_builder::Routes;
 use async_trait::async_trait;
+use std::io::Read;
 use std::sync::Arc;
 use tokio::io::BufReader;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
@@ -47,6 +48,7 @@ where
         let headers = stream.headers().await;
 
         let path = headers
+            .0
             .get(0)
             .clone()
             .expect("Couldn't read route headers")
@@ -70,8 +72,12 @@ where
                     None => None,
                 };
 
-                let response =
-                    value_function(crate::request::request::Request { params, headers }).response();
+                let response = value_function(crate::request::request::Request {
+                    params,
+                    headers: headers.0,
+                    body: headers.1,
+                })
+                .response();
 
                 Routes::<T>::handle(&mut stream, response).await?;
                 Ok(())
@@ -110,26 +116,29 @@ where
 
 #[async_trait]
 trait Tcp {
-    async fn headers(&mut self) -> Vec<String>;
+    async fn headers(&mut self) -> (Vec<String>, String);
 }
 
 #[async_trait]
 impl Tcp for TcpStream {
-    async fn headers(&mut self) -> Vec<String> {
+    async fn headers(&mut self) -> (Vec<String>, String) {
         let mut reader = BufReader::new(self);
         let mut headers = Vec::new();
+        let mut body = String::new();
 
         loop {
             let mut buf = Vec::new();
             reader.read_until(b'\n', &mut buf).await.unwrap();
             let line = String::from_utf8_lossy(&buf).to_string();
 
-            if .is_empty() || reader.buffer().len() == 1 {
+            if line != "\r\n" {
+                headers.push(line.replace("\r\n", ""));
+            } else {
+                reader.buffer().read_to_string(&mut body).expect("something went wrong reading the body!");
                 break;
             }
         }
 
-        println!("{:?}", headers);
-        headers
+        (headers, body)
     }
 }

@@ -12,10 +12,15 @@ struct Sjon {
 }
 
 fn home(_request: Request) -> Response {
+    let json: Result<Sjon, builder::request::request::ParseError> = _request.parse_json_body();
+
+    if json.is_err() {
+        return Response::new().error_with_message(format!("{:?}", json)).finish();
+    }
+
     Response::new()
         .status(builder::responses::responses::ResponseStatus::OK)
-        .response("hello world".to_string())
-        .response_type(builder::responses::responses::ResponseTypes::Html)
+        .ok_with_message(format!("Welcome {:?}!", json.unwrap().name))
         .finish()
 }
 
@@ -38,7 +43,7 @@ async fn main() {
     Routes::new()
         .add_route("/", home, "get")
         .add_route("/home", home, "post")
-        .add_route("/home/wow", home, "get")
+        .add_route("/home/wow", home, "post")
         .add_route("/welcome/:id/wow", other, "get")
         .add_route(
             "/swapping_is_very_swappable/:key2/hello/:id",

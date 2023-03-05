@@ -9,6 +9,7 @@ pub enum ParseError {
 pub struct Request {
     pub params: Option<HashMap<String, String>>,
     pub headers: Vec<String>,
+    pub body: String,
 }
 
 #[cfg(feature = "serde")]
@@ -24,18 +25,12 @@ impl ParseJsonBody for Request {
     where
         T: serde::Deserialize<'a>,
     {
-        let body = self.headers.last();
-        match body {
-            Some(b) => {
-                let convert: Result<T, serde_json::Error> = serde_json::from_str(b);
-                match convert {
-                    Ok(value) => Ok(value),
-                    Err(value) => Err(ParseError::CoulndtParse(format!(
-                        "couldn't parse : ${value:?}"
-                    ))),
-                }
-            }
-            None => Err(ParseError::NoBody),
+        let convert: Result<T, serde_json::Error> = serde_json::from_str(&self.body);
+        match convert {
+            Ok(value) => Ok(value),
+            Err(value) => Err(ParseError::CoulndtParse(format!(
+                "couldn't parse : ${:?}", value.to_string()
+            ))),
         }
     }
 }

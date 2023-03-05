@@ -6,7 +6,7 @@ use crate::http_response::HttpResponse;
 pub enum ResponseStatus {
     OK,
     INTERNALSERVERERROR,
-    NOTFOUND
+    NOTFOUND,
 }
 
 #[derive(Clone, Debug)]
@@ -40,6 +40,34 @@ impl Default for Response {
 impl Response {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn ok(&mut self) -> &mut Self {
+        self.status = ResponseStatus::OK;
+        self
+    }
+
+    pub fn ok_with_message<T>(&mut self, message: T) -> &mut Self
+    where
+        T: ToString,
+    {
+        self.status = ResponseStatus::OK;
+        self.response(message.to_string());
+        self
+    }
+
+    pub fn error(&mut self) -> &mut Self {
+        self.status = ResponseStatus::INTERNALSERVERERROR;
+        self
+    }
+
+    pub fn error_with_message<T>(&mut self, reason: T) -> &mut Self
+    where
+        T: ToString,
+    {
+        self.status = ResponseStatus::INTERNALSERVERERROR;
+        self.response(reason.to_string());
+        self
     }
 
     pub fn status(&mut self, status: ResponseStatus) -> &mut Self {
@@ -112,7 +140,7 @@ impl Response {
         let status = match self.status {
             ResponseStatus::OK => "200 OK",
             ResponseStatus::INTERNALSERVERERROR => "500 Internal Server Error",
-            ResponseStatus::NOTFOUND => "404 Not Found"
+            ResponseStatus::NOTFOUND => "404 Not Found",
         };
 
         let response_type = match self.response_type {
