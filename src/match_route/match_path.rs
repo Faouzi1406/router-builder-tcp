@@ -12,18 +12,20 @@ where
     pub paths: &'a mut Routes<R>,
     pub url_split: Vec<String>,
     pub params: Option<HashMap<String, String>>,
+    pub method:String
 }
 
 impl<'a, R> RouteParams<'a, R>
 where
     R: HttpResponse,
 {
-    pub fn new(url: String, route: &'a mut Routes<R>) -> Self {
+    pub fn new(url: String, route: &'a mut Routes<R>, method:String) -> Self {
         let url_split = url.split("/").skip(1).map(|x| x.to_string()).collect();
         Self {
             paths: route,
             url_split,
             params: None,
+            method
         }
     }
 
@@ -79,6 +81,7 @@ where
                     .map(|x| x.to_string())
                     .collect();
 
+
                 if self.url_split == url {
                     let route: Route<R> = Route {
                         request_params: None,
@@ -89,7 +92,7 @@ where
                     return Some(route);
                 }
 
-                if self.validate(url.clone()) {
+                if self.validate(url.clone()) && self.method == route.request_type.to_lowercase() {
                     let param = self.match_params(url);
                     let route: Route<R> = Route {
                         request_params: Some(param),
