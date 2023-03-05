@@ -3,9 +3,8 @@ use crate::match_route::match_path;
 use crate::responses::responses::Response;
 use crate::route_builder::Routes;
 use async_trait::async_trait;
-use std::fmt::Debug;
 use std::sync::Arc;
-use tokio::io::{BufReader, AsyncReadExt};
+use tokio::io::BufReader;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
@@ -123,15 +122,14 @@ impl Tcp for TcpStream {
         loop {
             let mut buf = Vec::new();
             reader.read_until(b'\n', &mut buf).await.unwrap();
-
             let line = String::from_utf8_lossy(&buf).to_string();
-            if line == "\r\n" {
+
+            if .is_empty() || reader.buffer().len() == 1 {
                 break;
             }
-
-            headers.push(line.replace("\r\n", ""));
         }
 
+        println!("{:?}", headers);
         headers
     }
 }

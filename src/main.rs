@@ -1,7 +1,15 @@
 use builder::{
-    builder_traits::builder::BuildRoute, request::request::Request, responses::responses::Response,
+    builder_traits::builder::BuildRoute,
+    request::request::{ParseJsonBody, Request},
+    responses::responses::Response,
     route_builder::Routes,
 };
+use serde::Deserialize;
+
+#[derive(Deserialize, Debug)]
+struct Sjon {
+    name: String,
+}
 
 fn home(_request: Request) -> Response {
     Response::new()

@@ -1,0 +1,27 @@
+use std::collections::HashMap;
+
+use serde::Serialize;
+
+pub struct Request {
+    pub params: Option<HashMap<String, String>>,
+    pub headers: Vec<String>,
+}
+
+#[cfg(feature = "serde")]
+pub trait ParseJsonBody {
+    fn parse_json_body<'a, T>(&self) -> Result<T, serde_json::Error>
+    where
+        T: serde::Serialize + serde::Deserialize<'a>;
+}
+
+#[cfg(feature = "serde")]
+impl ParseJsonBody for Request {
+    fn parse_json_body<'a, T>(&self) -> Result<T, serde_json::Error>
+    where
+        T: serde::Serialize + serde::Deserialize<'a>,
+    {
+        let body = self.headers.last().unwrap();
+        let body:T = serde_json::json!(body);
+        body
+    }
+}

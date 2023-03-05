@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-use std::fmt::Debug;
 use crate::builder_traits::builder::BuildRoute;
 use crate::http_response::HttpResponse;
 use crate::request::request::Request;
+use std::collections::HashMap;
+use std::fmt::Debug;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Route<T>
