@@ -1,17 +1,23 @@
-use serde::{Deserialize, Serialize};
 use std::{fs::File, io::Read, path::Path};
+
+use crate::http_response::HttpResponse;
 
 #[derive(Clone, Debug)]
 pub enum ResponseStatus {
     OK,
     INTERNALSERVERERROR,
+    NOTFOUND,
 }
 
 #[derive(Clone, Debug)]
 pub enum ResponseTypes {
     Html,
     File,
-    Json
+    Json,
+    ImagePng,
+    ImageJpg,
+    ImageJpeg,
+    ImageGif,
 }
 
 #[derive(Clone, Debug)]
@@ -35,6 +41,35 @@ impl Response {
     pub fn new() -> Self {
         Self::default()
     }
+
+    pub fn ok(&mut self) -> &mut Self {
+        self.status = ResponseStatus::OK;
+        self
+    }
+
+    pub fn ok_with_message<T>(&mut self, message: T) -> &mut Self
+    where
+        T: ToString,
+    {
+        self.status = ResponseStatus::OK;
+        self.response(message.to_string());
+        self
+    }
+
+    pub fn error(&mut self) -> &mut Self {
+        self.status = ResponseStatus::INTERNALSERVERERROR;
+        self
+    }
+
+    pub fn error_with_message<T>(&mut self, reason: T) -> &mut Self
+    where
+        T: ToString,
+    {
+        self.status = ResponseStatus::INTERNALSERVERERROR;
+        self.response(reason.to_string());
+        self
+    }
+
     pub fn status(&mut self, status: ResponseStatus) -> &mut Self {
         self.status = status;
         self
@@ -50,14 +85,14 @@ impl Response {
         self
     }
 
-    #[cfg(feature="serde")]
+    #[cfg(feature = "serde")]
     pub fn json<'a, T>(&mut self, json: T) -> &mut Self
     where
-        T: serde::Deserialize<'a> +  serde::Serialize
+        T: serde::Deserialize<'a> + serde::Serialize,
     {
-        self.respone_string = match serde_json::to_string(&json){
+        self.respone_string = match serde_json::to_string(&json) {
             Ok(value) => value,
-            Err(_) => "not valid json".to_owned()
+            Err(_) => "not valid json".to_owned(),
         };
         self.response_type = ResponseTypes::Json;
         self
@@ -89,6 +124,14 @@ impl Response {
         self
     }
 
+    pub fn not_found() -> String {
+        Response::build_response(
+            "route not found".to_string(),
+            ResponseStatus::NOTFOUND,
+            ResponseTypes::Html,
+        )
+    }
+
     pub fn finish(&mut self) -> Self {
         self.clone()
     }
@@ -97,12 +140,17 @@ impl Response {
         let status = match self.status {
             ResponseStatus::OK => "200 OK",
             ResponseStatus::INTERNALSERVERERROR => "500 Internal Server Error",
+            ResponseStatus::NOTFOUND => "404 Not Found",
         };
 
         let response_type = match self.response_type {
             ResponseTypes::Html => "Content-Type: text/html;",
             ResponseTypes::File => "Content-Type: text/plain;",
-            ResponseTypes::Json =>  "Content-Type: application/json;"
+            ResponseTypes::Json => "Content-Type: application/json;",
+            ResponseTypes::ImagePng => "Content-Type: data:image/png;",
+            ResponseTypes::ImageJpg => "Content-Type: data:image/jpg;",
+            ResponseTypes::ImageJpeg => "Content-Type: data:image/jpeg;",
+            ResponseTypes::ImageGif => "Content-Type: data:image/gif;",
         };
 
         let response_content = self.respone_string.clone();

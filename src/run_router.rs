@@ -1,18 +1,45 @@
 use crate::http_response::HttpResponse;
 use crate::match_route::match_path;
-use crate::responses::responses::{Response, ResponseStatus, ResponseTypes};
+use crate::responses::responses::Response;
 use crate::route_builder::Routes;
 use async_trait::async_trait;
-use std::fmt::Debug;
+use std::io::Read;
 use std::sync::Arc;
+use tokio::io::BufReader;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
-use tokio::io::{AsyncReadExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 
+#[async_trait]
+trait StreamConnection {
+    async fn handle(
+        stream: &mut TcpStream,
+        response: String,
+    ) -> Result<(), Box<dyn std::error::Error>>;
+}
+
+#[async_trait]
+impl<T> StreamConnection for Routes<T>
+where
+    T: HttpResponse + Clone + 'static + ?Sized,
+{
+    async fn handle(
+        stream: &mut TcpStream,
+        response: String,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        stream.writable().await?;
+        stream.try_write(response.as_bytes())?;
+        stream.flush().await?;
+        stream.shutdown().await?;
+        drop(stream);
+
+        Ok(())
+    }
+}
+
 impl<T> Routes<T>
 where
-    T: HttpResponse + Debug + Clone + 'static + ?Sized,
+    T: HttpResponse + Clone + 'static + ?Sized,
 {
     pub async fn hande_connection(
         &mut self,
@@ -21,6 +48,7 @@ where
         let headers = stream.headers().await;
 
         let path = headers
+            .0
             .get(0)
             .clone()
             .expect("Couldn't read route headers")
@@ -28,11 +56,9 @@ where
         let path_request = path.clone();
         let request_type = path_request.clone().split(" ").nth(0).unwrap().to_string();
 
-        let match_route = match_path::RouteParams::new(
-            path_request.clone().split(" ").nth(1).unwrap().to_string(),
-            self,
-        )
-        .match_route();
+        let route = path_request.clone().split(" ").nth(1).unwrap().to_string();
+        let match_route =
+            match_path::RouteParams::new(route, self, request_type.to_lowercase()).match_route();
         let match_params_route = match_route.clone();
 
         match match_params_route {
@@ -46,24 +72,18 @@ where
                     None => None,
                 };
 
-                let response = value_function(params).response();
-                stream
-                    .writable()
-                    .await
-                    .expect("socket was never made readable!");
-                stream
-                    .try_write(response.as_bytes())
-                    .expect("Couldn't write to stream");
-                stream.flush().await.expect("Couldn't flush stream");
+                let response = value_function(crate::request::request::Request {
+                    params,
+                    headers: headers.0,
+                    body: headers.1,
+                })
+                .response();
+
+                Routes::<T>::handle(&mut stream, response).await?;
                 Ok(())
             }
             _ => {
-                let not_found = Response::build_response(
-                    "route not found".to_string(),
-                    ResponseStatus::INTERNALSERVERERROR,
-                    ResponseTypes::Html,
-                );
-                stream.try_write(not_found.as_bytes())?;
+                stream.try_write(Response::not_found().as_bytes())?;
                 stream.flush().await.expect("Couldn't flush stream");
                 Ok(())
             }
@@ -83,7 +103,12 @@ where
 
             let value = Arc::clone(&value);
             tokio::task::spawn(async move {
-                value.lock().await.hande_connection(stream).await.expect("couldn't handle stream");
+                value
+                    .lock()
+                    .await
+                    .hande_connection(stream)
+                    .await
+                    .expect("couldn't handle stream");
             });
         }
     }
@@ -91,27 +116,29 @@ where
 
 #[async_trait]
 trait Tcp {
-    async fn headers(&mut self) -> Vec<String>;
+    async fn headers(&mut self) -> (Vec<String>, String);
 }
 
 #[async_trait]
 impl Tcp for TcpStream {
-    async fn headers(&mut self) -> Vec<String> {
+    async fn headers(&mut self) -> (Vec<String>, String) {
         let mut reader = BufReader::new(self);
         let mut headers = Vec::new();
+        let mut body = String::new();
 
         loop {
             let mut buf = Vec::new();
             reader.read_until(b'\n', &mut buf).await.unwrap();
-
             let line = String::from_utf8_lossy(&buf).to_string();
-            if line == "\r\n" {
+
+            if line != "\r\n" {
+                headers.push(line.replace("\r\n", ""));
+            } else {
+                reader.buffer().read_to_string(&mut body).expect("something went wrong reading the body!");
                 break;
             }
-
-            headers.push(line.replace("\r\n", ""));
         }
 
-        headers
+        (headers, body)
     }
 }
